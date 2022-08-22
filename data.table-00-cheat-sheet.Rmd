@@ -1,0 +1,310 @@
+---
+title: "data.table cheat sheet"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+```
+
+## Create a data.table
+
+```{r}
+data.table(a = c(1, 2), b = c("a", "b"))
+```
+
+```{r}
+dt <- mtcars
+setDT(dt)
+dt
+```
+
+```{r}
+dt <- as.data.table(dt)
+dt
+```
+
+## Subset rows using i
+
+```{r}
+dt[1:2, ]
+```
+
+```{r}
+dt[mpg > 20, ]
+```
+
+```{r}
+dt[mpg %between% c(20, 25), ]
+```
+
+## Manipulate columns with j
+
+### Extract
+
+```{r}
+dt[, c(2)]
+```
+
+```{r}
+dt2 <- dt[, .(mpg, cyl)]
+dt2
+```
+
+### Summarize
+
+```{r}
+dt2[, .(x = sum(mpg))]
+```
+
+```{r}
+dt2[, c := 1 + 2]
+dt2
+```
+
+```{r}
+dt2[mpg == 21.0, d := 1 + 2]
+dt2
+```
+
+```{r}
+dt2[, `:=`(e = 1, f = 2)]
+dt2
+```
+
+### Delete column
+
+```{r}
+dt2[, `:=`(c = NULL, d = NULL, e = NULL, f = NULL)]
+dt2
+```
+
+### Convert column type
+
+```{r}
+dt2[, mc := mpg + cyl]
+dt2[, mc := as.integer(mc)]
+dt2
+```
+
+## Group according to by
+
+```{r}
+dt2[, .(c = sum(mpg)), by = cyl]
+```
+
+```{r}
+dt2[, .(c = sum(mpg)), keyby = cyl] # sorted
+```
+
+### Common grouped operations
+
+```{r}
+dt2[, c := mean(mpg), by = cyl]
+dt2
+```
+
+```{r}
+dt2[, `:=`(mc = NULL, c = NULL)]
+dt2
+```
+
+```{r}
+dt2[, .SD[1], by = cyl] # 그룹별 첫번째 줄
+```
+
+```{r}
+dt2[, .SD[.N], by = cyl] # 그룹별 마지막 줄
+```
+
+## Chaining
+
+```{r}
+dt2[, mc := mpg + cyl][, .(s = mean(mc)), by = cyl]
+```
+
+## Functions for data.tables
+
+### Reorder
+
+```{r}
+setorder(dt2, cyl, -mpg)
+dt2
+```
+
+### Unique rows
+
+```{r}
+unique(dt2, by = c("cyl"))
+```
+
+```{r}
+uniqueN(dt2, by = c("cyl"))
+```
+
+### Rename columns
+
+```{r}
+setnames(dt2, c("mpg", "cyl"), c("MPG", "CYL"))
+dt2
+```
+
+## Combine data.tables
+
+### Join
+
+```{r}
+dt_a <- data.table(
+  a = c(1, 2, 3),
+  b = c("c", "a", "b")
+)
+dt_a
+
+dt_b <- data.table(
+  x = c(3, 2, 1),
+  y = c("b", "c", "a")
+)
+dt_b
+```
+
+```{r}
+dt_a[dt_b, on = .(b = y)]
+```
+
+```{r}
+dt_b[dt_a, on = .(y = b)]
+```
+
+```{r}
+dt_a <- data.table(
+  a = c(1, 2, 3),
+  b = c("c", "a", "b"),
+  c = c(7, 5, 6)
+)
+dt_a
+
+dt_b <- data.table(
+  x = c(3, 2, 1),
+  y = c("b", "c", "a"),
+  z = c(4, 5, 8)
+)
+dt_b
+```
+
+```{r}
+dt_a[dt_b, on = .(b = y, c > z)]
+```
+
+### Rolling join
+
+```{r}
+dt_a <- data.table(
+  a = c(1, 2, 3, 1, 2),
+  id = c("A", "A", "A", "B", "B"),
+  date = c(
+    as.Date("2010-01-01"),
+    as.Date("2012-01-01"),
+    as.Date("2014-01-01"),
+    as.Date("2010-01-01"),
+    as.Date("2012-01-01")
+  )
+)
+dt_a
+dt_b <- data.table(
+  b = c(1, 1),
+  id = c("A", "B"),
+  date = c(as.Date("2013-01-01"), as.Date("2013-01-01"))
+)
+dt_b
+```
+
+```{r}
+dt_a[dt_b, on = .(id = id, date = date), roll = TRUE]
+```
+
+```{r}
+dt_a[dt_b, on = .(id = id, date = date), roll = -Inf]
+```
+
+### Bind
+
+```{r}
+dt_a <- dt2[1:5, ]
+dt_b <- dt2[6:10, ]
+```
+
+```{r}
+rbind(dt_a, dt_b)
+```
+
+```{r}
+a <- cbind(dt_a, dt_b) # 주의 동일한 이름이 존재
+a
+```
+
+## Reshape a data.table
+
+```{r}
+dt <- data.table(
+  id = c("A", "A", "B", "B"),
+  y = c("x", "z", "x", "z"),
+  a = c(1, 2, 1, 2),
+  b = c(3, 4, 3, 4)
+)
+dt
+dt2 <- dcast(dt, id ~ y, value.var = c("a", "b"))
+dt2
+```
+
+```{r}
+melt(dt2,
+  id.vars = c("id"),
+  measure.vars = patterns("^a", "^b"),
+  variable.name = "y",
+  value.name = c("a", "b")
+)
+```
+
+## Apply function to cols
+
+### Apply a function to multiple columns
+
+```{r}
+dt <- as.data.table(mtcars[1:10, 1:2])
+dt
+```
+
+```{r}
+dt[, lapply(.SD, mean), .SDcols = c("mpg", "cyl")]
+```
+
+```{r}
+cols <- c("mpg", "cyl")
+dt[, paste0(cols, "_m") := lapply(.SD, mean), .SDcols = cols]
+dt
+```
+
+## Sequential rows
+
+### Row ids
+
+```{r}
+dt[, c := 1:.N, by = cyl]
+dt
+```
+
+### Lag & Lead
+
+```{r}
+dt <- as.data.table(mtcars[1:10, 1:2])
+dt2 <- dt[order(cyl), ]
+dt2[, c := shift(mpg, 1), by = cyl]
+dt2
+```
+
+```{r}
+dt <- as.data.table(mtcars[1:10, 1:2])
+dt2 <- dt[order(cyl), ]
+dt2[, c := shift(mpg, 1, type = "lead"), by = cyl]
+dt2
+```
