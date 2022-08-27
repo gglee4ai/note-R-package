@@ -10,11 +10,11 @@ library(data.table)
 # 1. Basics
 
 ```{r}
-if (!file.exists("data/flights14.csv")) {
-  download.file(input, "data/flights14.csv")
+if (!file.exists("flights14.csv")) {
+  download.file(input, "flights14.csv")
 }
 
-input <- "data/flights14.csv"
+input <- "flights14.csv"
 flights <- fread(input)
 flights
 ```
