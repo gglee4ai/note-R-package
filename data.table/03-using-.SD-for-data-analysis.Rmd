@@ -1,0 +1,124 @@
+---
+title: "Using .SD for Data Analysis"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+```
+
+```{r}
+data("Teams", package = "Lahman")
+setDT(Teams)
+Teams
+```
+
+```{r}
+data("Pitching", package = "Lahman")
+setDT(Pitching)
+Pitching
+```
+
+```{r}
+Pitching[, .SD]
+```
+
+```{r}
+identical(Pitching, Pitching[, .SD])
+```
+
+```{r}
+Pitching[, .SD, .SDcols = c("W", "L", "G")]
+```
+
+```{r}
+fkt <- c("teamIDBR", "teamIDlahman45", "teamIDretro")
+Teams[, sapply(.SD, is.character), .SDcols = fkt]
+```
+
+```{r}
+setDF(Teams)
+sapply(Teams[, fkt], is.character)
+setDT(Teams)
+```
+
+```{r}
+Teams[, (fkt) := lapply(.SD, factor), .SDcols = fkt]
+Teams[, fkt, with = FALSE]
+```
+
+```{r}
+fkt_idx <- which(sapply(Teams, is.factor))
+fkt_idx
+```
+
+```{r}
+Teams[, (fkt_idx) := lapply(.SD, as.character), .SDcols = fkt_idx]
+Teams[, fkt_idx, with = FALSE]
+```
+
+```{r}
+Teams[, .SD, .SDcols = patterns("team")]
+```
+
+```{r}
+extra_var <- c("yearID", "teamID", "G", "L")
+models <- unlist(
+  lapply(0L:length(extra_var), combn, x = extra_var, simplify = FALSE),
+  recursive = FALSE
+)
+models
+```
+
+```{r}
+col16 <- c(
+  "#e6194b", "#3cb44b", "#ffe119", "#0082c8",
+  "#f58231", "#911eb4", "#46f0f0", "#f032e6",
+  "#d2f53c", "#fabebe", "#008080", "#e6beff",
+  "#aa6e28", "#fffac8", "#800000", "#aaffc3"
+)
+```
+
+```{r}
+par(oma = c(2, 0, 0, 0))
+lm_coef <- sapply(models, function(rhs) {
+  Pitching[, coef(lm(ERA ~ ., data = .SD))["W"], .SDcols = c("W", rhs)]
+})
+barplot(lm_coef,
+  names.arg = sapply(models, paste, collapse = "/"),
+  main = "Wins Coefficient\nWith Various Covariates",
+  col = col16, las = 2L, cex.names = .8
+)
+```
+
+```{r}
+# to exclude pitchers with exceptional performance in a few games,
+#   subset first; then define rank of pitchers within their team each year
+#   (in general, we should put more care into the 'ties.method' of frank)
+Pitching[G > 5, rank_in_team := frank(ERA), by = .(teamID, yearID)]
+Pitching[rank_in_team == 1, team_performance :=
+  Teams[.SD, Rank, on = c("teamID", "yearID")]]
+Pitching
+```
+
+```{r}
+Teams[, .SD[.N], by = teamID]
+```
+
+```{r}
+Teams[, .SD[which.max(R)], by = teamID]
+```
+
+```{r}
+overall_coef <- Pitching[, coef(lm(ERA ~ W))["W"]]
+```
+
+```{r}
+Pitching[, if (.N > 20L) .(w_coef = coef(lm(ERA ~ W))["W"]), by = teamID][, hist(w_coef, 20L,
+  las = 1L,
+  xlab = "Fitted Coefficient on W",
+  ylab = "Number of Teams", col = "darkgreen",
+  main = "Team-Level Distribution\nWin Coefficients on ERA"
+)]
+abline(v = overall_coef, lty = 2L, col = "red")
+```
