@@ -1,0 +1,109 @@
+---
+title: "Reference semantics"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+```
+
+```{r}
+flights <- fread("flights14.csv")
+```
+
+```{r}
+DF <- data.frame(ID = c("b", "b", "b", "a", "a", "c"), a = 1:6, b = 7:12, c = 13:18)
+DF
+```
+
+```{r}
+DF$c <- 18:13
+DF
+```
+
+```{r}
+DF$c <- 18:13 # 복사 발생
+DF$c[DF$ID == "b"] <- 15:13 # 복사 발생
+DF
+```
+
+```{r}
+flights[, `:=`(
+  speed = distance / (air_time / 60), # speed in mph (mi/h)
+  delay = arr_delay + dep_delay
+)]
+flights
+```
+
+```{r}
+flights[, sort(unique(hour))]
+```
+
+```{r}
+flights[hour == 24L, hour := 0L][]
+```
+
+```{r}
+flights[, sort(unique(hour))]
+```
+
+```{r}
+flights[, c("delay") := NULL]
+```
+
+```{r}
+flights[, max_speed := max(speed), by = .(origin, dest)]
+flights
+```
+
+```{r}
+in_cols <- c("dep_delay", "arr_delay")
+out_cols <- c("max_dep_delay", "max_arr_delay")
+flights[, c(out_cols) := lapply(.SD, max), by = month, .SDcols = in_cols]
+flights
+```
+
+```{r}
+flights[, c("speed", "max_speed", "max_dep_delay", "max_arr_delay") := NULL]
+```
+
+```{r}
+foo <- function(DT) {
+  DT[, speed := distance / (air_time / 60)]
+  DT[, .(max_speed = max(speed)), by = month]
+}
+ans <- foo(flights)
+flights
+ans
+```
+
+```{r}
+foo <- function(DT) {
+  DT <- copy(DT)
+  DT[, speed := distance / (air_time / 60)]
+  DT[, .(max_speed = max(speed)), by = month]
+}
+ans <- foo(flights)
+flights
+ans
+```
+
+```{r}
+DT <- data.table(x = 1L, y = 2L)
+DT_n <- names(DT)
+DT_n
+```
+
+```{r}
+DT[, z := 3L]
+```
+
+```{r}
+DT_n
+```
+
+```{r}
+DT_n <- copy(names(DT))
+DT[, w := 4L]
+DT_n
+```
