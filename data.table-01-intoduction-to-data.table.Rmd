@@ -1,0 +1,206 @@
+---
+title: "Introduction to data.table"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+```
+
+# 1. Basics
+
+```{r}
+if (!file.exists("data/flights14.csv")) {
+  download.file(input, "data/flights14.csv")
+}
+
+input <- "data/flights14.csv"
+flights <- fread(input)
+flights
+```
+
+```{r}
+DT <- data.table(
+  ID = c("b", "b", "b", "a", "a", "c"),
+  a = 1:6,
+  b = 7:12,
+  c = 13:18
+)
+DT
+```
+
+```{r}
+flights[origin == "JFK" & month == 6L]
+```
+
+```{r}
+flights[1:2]
+```
+
+```{r}
+flights[order(origin, -dest)]
+```
+
+```{r}
+flights[, arr_delay] |> head()
+```
+
+```{r}
+flights[, list(arr_delay)]
+```
+
+```{r}
+flights[, .(arr_delay)]
+```
+
+```{r}
+flights[, .(arr_delay, dep_delay)]
+```
+
+```{r}
+flights[, .(delay_arr = arr_delay, delay_dep = dep_delay)]
+```
+
+```{r}
+flights[, sum((arr_delay + dep_delay) < 0)]
+```
+
+```{r}
+flights[
+  origin == "JFK" & month == 6L,
+  .(m_arr = mean(arr_delay), m_dep = mean(dep_delay))
+]
+```
+
+```{r}
+flights[origin == "JFK" & month == 6L, .N]
+```
+
+```{r}
+flights[, c("arr_delay", "dep_delay")]
+```
+
+```{r}
+select_cols <- c("arr_delay", "dep_delay")
+flights[, ..select_cols]
+```
+
+```{r}
+flights[, select_cols, with = FALSE]
+```
+
+```{r}
+DF <- data.frame(x = c(1, 1, 1, 2, 2, 3, 3, 3), y = 1:8)
+DF[DF$x > 1, ]
+```
+
+```{r}
+DF[with(DF, x > 1), ]
+```
+
+```{r}
+flights[, !c("arr_delay", "dep_delay")]
+flights[, -c("arr_delay", "dep_delay")]
+```
+
+```{r}
+flights[, year:day]
+```
+
+```{r}
+flights[, day:year]
+```
+
+```{r}
+flights[, -(year:day)]
+flights[, !(year:day)]
+```
+
+# 2. Aggregations
+
+```{r}
+flights[, .(.N), by = .(origin)]
+```
+
+```{r}
+flights[, .N, by = origin]
+```
+
+```{r}
+flights[carrier == "AA", .N, by = origin]
+```
+
+```{r}
+flights[carrier == "AA", .N, by = .(origin, dest)]
+```
+
+```{r}
+flights[carrier == "AA",
+  .(mean(arr_delay), mean(dep_delay)),
+  by = .(origin, dest, month)
+]
+```
+
+```{r}
+flights[carrier == "AA",
+  .(mean(arr_delay), mean(dep_delay)),
+  keyby = .(origin, dest, month)
+]
+```
+
+```{r}
+ans <- flights[carrier == "AA", .N, by = .(origin, dest)]
+ans
+```
+
+```{r}
+ans[order(origin, -dest)]
+```
+
+```{r}
+flights[carrier == "AA", .N, by = .(origin, dest)][order(origin, -dest)]
+```
+
+```{r}
+flights[, .N, .(dep_delay > 0, arr_delay > 0)]
+```
+
+```{r}
+DT
+```
+
+```{r, paged.print=FALSE}
+DT[, print(.SD), by = ID]
+```
+
+```{r}
+DT[, lapply(.SD, mean), by = ID]
+```
+
+```{r}
+flights[carrier == "AA",
+  lapply(.SD, mean),
+  by = .(origin, dest, month),
+  .SDcols = c("arr_delay", "dep_delay")
+]
+```
+
+```{r}
+flights[, head(.SD, 2), by = month]
+```
+
+```{r}
+DT[, .(val = c(a, b)), by = ID]
+```
+
+```{r}
+DT[, .(val = list(c(a, b))), by = ID]
+```
+
+```{r, paged.print=FALSE}
+DT[, print(c(a, b)), by = ID]
+```
+
+```{r, paged.print=FALSE}
+DT[, print(list(c(a, b))), by = ID]
+```
