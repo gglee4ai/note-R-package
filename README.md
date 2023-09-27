@@ -1,1 +1,1 @@
-# study-R
+# note-various-R-package
